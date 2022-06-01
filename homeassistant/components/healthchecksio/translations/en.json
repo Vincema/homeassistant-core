@@ -1,0 +1,23 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "Device is already configured"
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_auth": "Invalid authentication",
+            "check_not_found": "Incorrect UUID",
+            "rate_limit_reached": "The rate limit for the account has been reached",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+                    "api_key": "API Key",
+                    "unique_id": "Check UUID",
+                    "scan_interval": "Scan Interval (seconds)"
+                }
+            }
+        }
+    }
+}

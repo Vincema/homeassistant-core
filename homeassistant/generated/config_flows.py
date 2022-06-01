@@ -142,6 +142,7 @@ FLOWS = {
         "habitica",
         "hangouts",
         "harmony",
+        "healthchecksio",
         "heos",
         "hisense_aehw4a1",
         "hive",
