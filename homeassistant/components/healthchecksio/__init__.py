@@ -15,11 +15,11 @@ from healthchecks_io import (
 )
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_API_KEY, Platform
+from homeassistant.const import CONF_API_KEY, CONF_UNIQUE_ID, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, IntegrationError
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.httpx_client import get_async_client
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN, SCAN_INTERVAL
 
@@ -37,6 +37,7 @@ class HealtchecksioCoordinator(DataUpdateCoordinator):
         """Initialise the instance."""
         self._api_key: str = api_key
         self._client = AsyncClient(api_key=api_key, client=get_async_client(hass))
+        self._checks: set[str] = set()
         super().__init__(
             hass,
             _LOGGER,
@@ -44,6 +45,14 @@ class HealtchecksioCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=SCAN_INTERVAL),
             update_method=self._async_get_checks,
         )
+
+    def register_check(self, check_id: str) -> None:
+        """Add a new check to the list of checks monitored vby the coordinator."""
+        self._checks.add(check_id)
+
+    def unregister_check(self, check_id: str) -> None:
+        """Remove a new check to the list of checks monitored vby the coordinator."""
+        self._checks.remove(check_id)
 
     async def _async_get_checks(self) -> dict[str, Check]:
         """Fetch API data to get the information on all the checks for the API key."""
@@ -53,13 +62,16 @@ class HealtchecksioCoordinator(DataUpdateCoordinator):
         except HCAPIAuthError as err:
             raise ConfigEntryAuthFailed from err
         except HCAPIRateLimitError as err:
-            raise IntegrationError(
+            raise UpdateFailed(
                 "The rate limit for this API key has been reached"
             ) from err
         except HCAPIError as err:
-            raise IntegrationError(
+            raise UpdateFailed(
                 "An error occurred when trying to fetch the check information"
             ) from err
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception")
+            raise UpdateFailed("An unknown error occurred") from err
 
     @property
     def api_key(self) -> str:
@@ -86,6 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN].setdefault(KEY_COORDINATOR_CONFIG_LOCK, Lock())
 
     api_key = entry.data[CONF_API_KEY]
+    unique_id = entry.data[CONF_UNIQUE_ID]
 
     coordinator_config_lock: Lock = hass.data[DOMAIN][KEY_COORDINATOR_CONFIG_LOCK]
 
@@ -96,6 +109,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ) is None:
             coordinator = HealtchecksioCoordinator(hass, api_key=api_key)
             hass.data[DOMAIN][KEY_COORDINATORS] += [coordinator]
+
+        coordinator.register_check(unique_id)
 
         await coordinator.async_config_entry_first_refresh()
 

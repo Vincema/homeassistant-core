@@ -1,9 +1,12 @@
 """Support for Healthchecksio sensors."""
 
+from typing import Optional, cast
+
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_UNIQUE_ID
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -48,16 +51,26 @@ class CheckSensor(CoordinatorEntity, SensorEntity):
     @callback
     def _handle_coordinator_update(self):
         """Fetch data and update the entity."""
-        self._attr_native_value = self.coordinator.data[
-            self.unique_id
-        ].status.capitalize()
-        self._icon = ICON_MAPPING[self.coordinator.data[self.unique_id].status]
+        if self.unique_id not in self.coordinator.data:
+            raise HomeAssistantError(
+                f"Data for entity {self.entity_id} was not returned by the API"
+            )
+
+        status = cast(str, self.coordinator.data[self.unique_id].status)
+        name = cast(str, self.coordinator.data[self.unique_id].name)
+        desc = cast(str, self.coordinator.data[self.unique_id].desc)
+        tags_list = cast(
+            Optional[list[str]], self.coordinator.data[self.unique_id].tags
+        )
+        tags = ",".join(tags_list) if tags_list else ""
+
+        self._attr_native_value = status.capitalize()
+        self._icon = ICON_MAPPING[status]
         self._attr_extra_state_attributes.update(
             {
-                "name": self.coordinator.data[self.unique_id].name,
-                "description": self.coordinator.data[self.unique_id].desc,
-                "tags": self.coordinator.data[self.unique_id].tags,
-                "schedule": self.coordinator.data[self.unique_id].schedule,
+                "name": name,
+                "description": desc,
+                "tags": tags,
             }
         )
 

@@ -1,7 +1,7 @@
 """Constants for the healthchecksio integration."""
 DOMAIN = "healthchecksio"
 
-SCAN_INTERVAL = 300
+SCAN_INTERVAL = 20
 
 ICON_MAPPING = {
     "new": "mdi:server-network",
